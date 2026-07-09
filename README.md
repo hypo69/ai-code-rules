@@ -116,10 +116,12 @@ def process_user_data(data: dict) -> bool:
 * **❌ Плохо (Bad):**
   ```python
   str_output = None
+  dict_output = None
   ```
 * **✅ Хорошо (Good):**
   ```python
   str_output = ''
+  dict_output = {}
   ```
 
 #### 3.6.3 Запрет в операторах сравнения
