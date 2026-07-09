@@ -87,6 +87,12 @@ def process_user_data(data: dict) -> bool:
 * **❌ Неправильно:** `return` или `return None`
 * **✅ Правильно:** `return False`
 
+### 3.5 Конфигурация вместо жесткого кодирования (Configuration over Hardcode)
+Использование жестко закодированных параметров (hardcoded parameters) в исходном коде приложения **MUST NOT** допускаться. Все параметры, включая номера сетевых портов, сетевые адреса (URL/IP), таймауты, пути к директориям, лимиты и режимы работы, MUST считываться из внешнего конфигурационного файла JSON (через объект `config`) или переменных окружения.
+
+* **❌ Неправильно:** `port = 8000`
+* **✅ Правильно:** `port = config.port`
+
 ---
 
 ## 4. Общие правила проектирования и устранение Code Smells
@@ -192,7 +198,7 @@ Examples:
 #
 # Примеры:
 #   >>> from src.foundry import FoundryConnector
-#   >>> connector = FoundryConnector(port=3000)
+#   >>> connector = FoundryConnector(port=config.port)
 #   >>> connector.verify_status()
 #
 # File: foundry_connector.py
@@ -259,7 +265,7 @@ class FoundryConnector:
             ConnectionError: Ошибка инициализации сетевого сокета при недоступности порта.
 
         Examples:
-            >>> connector = FoundryConnector(port=3000)
+            >>> connector = FoundryConnector(port=config.port)
             >>> connector.execute_connection(timeout=10)
             <FoundryConnector object at 0x...>
         """
@@ -394,8 +400,8 @@ class Post_Metadata {
  *   Provides dynamic authorization headers configuration based on provider parameters.
  *
  * Examples:
- *   const client = new ApiClient('https://api.openai.com/v1');
- *   await client.fetchData('/chat/completions', { model: 'gpt-4o' });
+ *   const client = new ApiClient(config.openai.baseUrl);
+ *   await client.fetchData('/chat/completions', { model: config.openai.model });
  *
  * File: api-client.js
  * Project: Our Intelligent Assistant
@@ -433,8 +439,8 @@ class ApiClient {
      *   Error — Thrown on network timeout or failed status codes.
      *
      * Examples:
-     *   const client = new ApiClient('https://api.example.com');
-     *   const response = await client.postData('/submit', { id: 10 });
+     *   const client = new ApiClient(config.api.baseUrl);
+     *   const response = await client.postData('/submit', { id: config.api.id });
      */
     async postData(endpoint, payload) {
         // Checking of endpoint parameter existence
@@ -639,4 +645,5 @@ pprint(debug_data_structure)
 * [ ] Все новые секретные параметры вынесены в `.env` (и их заглушки добавлены в `.env.example`), а ссылки на них в `config.json` оформлены как `"${VAR_NAME}"`.
 * [ ] Файловые операции чтения и записи JSON/текста выполняются через обертки (`j_loads`, `save_text_file` и др.) с проверкой результата на пустоту (falsy) без дублирования логирования и без лишних блоков `try/except`.
 * [ ] Ни одна функция или метод в случае ошибочного сценария или раннего выхода не возвращает `None` или неявный пустой `return`. Возвращается строго `False` (или `false`).
+* [ ] Полностью исключено использование жестко закодированных (hardcoded) параметров в коде. Все настройки, константы, порты и адреса считываются динамически из внешнего конфигурационного JSON (через объект `config`) или переменных окружения.
 * [ ] В структуре каталогов отсутствуют временные файлы, неиспользуемый (мертвый) код и закомментированные куски логики. В измененных директориях обновлены или созданы файлы `README.md`.
