@@ -1,6 +1,3 @@
-Ниже представлен полный текст обновленного стандарта **Engineering Standard v1.0 (FastAPI Foundry Edition)** со всеми исправлениями, включая техническое обоснование языковых ограничений для предотвращения поломки Юникода.
-
----
 
 # ENGINEERING STANDARD v1.0 (FastAPI Foundry Edition)
 **Предыдущая версия:** v0.3.1  
@@ -106,12 +103,12 @@ def process_user_data(data: dict) -> bool:
 Комментарии в коде SHOULD объяснять инженерное решение и логические предпосылки выбора конкретного пути реализации, а не дублировать синтаксис языка.
 
 ```javascript
-// ✅ Правильное комментирование: объяснение причин выбора структуры данных
-// Использование Set вместо Array для обеспечения уникальности идентификаторов на O(1)
+// ✅ Correct: explanation of structural choices and performance reasoning
+// Usage of Set instead of Array to ensure unique IDs in O(1) complexity
 const activeConnections = new Set();
 
-// ❌ Неправильное комментирование: дублирование описания синтаксиса
-// Создание нового множества соединений
+// ❌ Incorrect: redundant syntax description
+// Creation of a new set of active connections
 const activeConnections = new Set();
 ```
 
@@ -274,24 +271,25 @@ class FoundryConnector:
 Разработка на PHP ориентирована на современную версию PHP 8.3+ и стандарты разработки WordPress.
 * Запрещается использование устаревшего кода; вся логика плагинов SHOULD упаковываться в Singleton-классы.
 * Обязательно использование nonce-проверок, санитизации и экранирования вывода.
+* **Кириллица полностью запрещена** в исходном коде PHP файлов (включая шапки и комментарии) во избежание повреждения Юникода.
 
 #### Шапка файла PHP
 ```php
 <?php
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Название процесса: Обработка метаданных публикаций WordPress
+# Process Name: WordPress Post Metadata Processing
 # =============================================================================
-# Описание:
-#   Регистрация пользовательских полей для типов записей в плагине.
-#   Очистка входящих запросов и экранирование вывода в шаблонах.
+# Description:
+#   Registration of custom metadata fields for plugin post types.
+#   Sanitization of incoming requests and escaping output in templates.
 #
-# Примеры:
-#   1. Регистрация хука обработки метаданных:
+# Examples:
+#   1. Hook registration:
 #        add_action('save_post', [Post_Metadata::get_instance(), 'save_meta']);
 #
 # File: class-post-metadata.php
-# Project: Наш интеллектуальный помощник
+# Project: Our Intelligent Assistant
 # Package: PluginMeta
 # Class: Post_Metadata
 # Author: hypo69
@@ -376,23 +374,24 @@ class Post_Metadata {
 ### 6.3 JavaScript & TypeScript Style Guide (ES2024)
 
 При написании скриптов MUST использоваться стандарт ES2024 (асинхронность через `async/await`, деструктуризация, optional chaining `?.`, nullish coalescing `??`).
+* **Кириллица полностью запрещена** в исходном коде JS/TS файлов (включая шапки и комментарии) во избежание повреждения Юникода.
 
 #### Шапка файла JS/TS
 ```javascript
 /**
  * =============================================================================
- * Название процесса: Обработка асинхронных вызовов API провайдеров
+ * Process Name: Asynchronous API Provider Interaction
  * =============================================================================
- * Описание:
- *   Абстрактный клиент для выполнения HTTP-запросов к OpenAI-совместимым API.
- *   Поддерживает динамическую установку заголовков авторизации.
+ * Description:
+ *   Abstract client implementation for executing HTTP requests to OpenAI-compatible APIs.
+ *   Provides dynamic authorization headers configuration based on provider parameters.
  *
- * Примеры:
+ * Examples:
  *   const client = new ApiClient('https://api.openai.com/v1');
  *   await client.fetchData('/chat/completions', { model: 'gpt-4o' });
  *
  * File: api-client.js
- * Project: Наш интеллектуальный помощник
+ * Project: Our Intelligent Assistant
  * Module: Network
  * Class: ApiClient
  * Author: hypo69
@@ -458,25 +457,20 @@ class ApiClient {
 
 ### 6.4 HTML & CSS/SCSS Style Guide
 
-#### Правило мультиязычности и локализации (i18n)
-Все строки пользовательского интерфейса во фронтенд-файлах MUST использовать плейсхолдеры. Прямой хардкод строк запрещен:
-* **HTML**: Использование атрибута `data-i18n` для динамической локализации.
-* **JS**: Использование обертки `i18n('key_path')` или `t('key_path')`.
-* **PHP**: Обязательный вызов `esc_html__('text', 'textdomain')`.
-* **CSS/SCSS**: Запрещается генерация пользовательского текста через атрибут `content: "Текст"` в псевдоэлементах `:before` / `:after`. Допускаются только служебные символы, стрелки, иконки.
+* **Кириллица полностью запрещена** в исходном коде HTML/CSS/SCSS файлов (включая шапки и комментарии) во избежание повреждения Юникода.
 
 #### Шаблон шапки файлов HTML
 ```html
 <!--
 ===============================================================================
-Название процесса: Макет разметки панели управления настройками
+Process Name: Dashboard Settings Configuration Layout
 ===============================================================================
-Описание:
-    Форма редактирования глобальных параметров интеграций и ключей API.
-    Содержит локализованные метки полей с поддержкой атрибутов data-i18n.
+Description:
+    Core template for managing system integrations, connection parameters, and API keys.
+    Utilizes data-i18n attributes on label tags to ensure translation support.
 
 File: dashboard-settings.html
-Project: Наш интеллектуальный помощник
+Project: Our Intelligent Assistant
 Module: AdminUI
 Author: hypo69
 Copyright: © 2026 hypo69
@@ -488,14 +482,14 @@ Copyright: © 2026 hypo69
 ```css
 /*
 ===============================================================================
-Название процесса: Стилизация интерфейса настроек
+Process Name: Dashboard Settings Styling Interface
 ===============================================================================
-Описание:
-    Визуальное оформление кнопок, форм и полей панели администратора.
-    Адаптивная верстка с использованием CSS Grid и переменных темы.
+Description:
+    Layout and visual rules for inputs, action forms, and administration panels.
+    Implements CSS Grid layouts and responsive variables for system themes.
 
 File: admin-styles.css
-Project: Наш интеллектуальный помощник
+Project: Our Intelligent Assistant
 Module: AdminUI
 Author: hypo69
 Copyright: © 2026 hypo69
@@ -583,7 +577,7 @@ pprint(debug_data_structure)
 
 ## 8. Правила для искусственного интеллекта (AI Coding Rules)
 
-ИИ-ассистенты, работающие с кодовой базой проекта, ОБЯЗАНЫ строго руководствоваться следующими протоколами анализа и модификации исходных кодов:
+ИИ-ассистенты, работающие с кодовой перед отправкой изменений ОБЯЗАНЫ строго руководствоваться следующими протоколами анализа и модификации исходных кодов:
 
 ### 8.1 Протокол предварительного анализа
 1. Перед внесением изменений в файл ИИ **MUST** прочитать файл полностью и проанализировать структуру его импортов, комментариев и архитектурных связей.
@@ -625,6 +619,8 @@ pprint(debug_data_structure)
 * [ ] Полностью исключены любые Sphinx/reStructuredText конструкции во всех секциях документации.
 * [ ] Языковые зоны комментариев строго соблюдены (Web и PHP — English only; Python — Russian/English).
 * [ ] В русскоязычных комментариях глаголы заменены на отглагольные существительные (например, «Инициализация подключения» вместо «Инициализирует подключение»).
+* [ ] В англоязычных комментариях для Web и PHP используются исключительно существительные или отглагольные формы (`Initialization`, `Verification`, `Loading`, `Execution`).
+* [ ] В файлах JS, PHP, HTML, CSS полностью отсутствует кириллица во избежание сбоев Юникода (Unicode breakage).
 * [ ] Код не содержит вызовов функции `print()`; все выводы осуществляются через `logger` или `pprint`.
 * [ ] Все новые секретные параметры вынесены в `.env` (и их заглушки добавлены в `.env.example`), а ссылки на них в `config.json` оформлены как `"${VAR_NAME}"`.
 * [ ] Файловые операции чтения и записи JSON/текста выполняются через обертки (`j_loads`, `save_text_file` и др.) с проверкой результата на пустоту и без лишних блоков `try/except`.
