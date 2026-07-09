@@ -9,14 +9,14 @@
 1. [Introduction and Scope](#1-introduction-and-scope)
 2. [Normative Keywords (RFC 2119)](#2-normative-keywords-rfc-2119)
 3. [Fundamental Architectural Principles](#3-fundamental-architectural-principles)
-4. [General Design Rules and Code Smells Mitigation](#4-general-design-rules-and-code-smells-mitigation)
+4. [General Design Rules and Code Smells Elimination](#4-general-design-rules-and-code-smells-elimination)
 5. [Commenting and Documentation Standards](#5-commenting-and-documentation-standards)
-6. [Language Style Guides](#6-language-style-guides)
+6. [Language Development Standards](#6-language-development-standards)
     * [6.1 Python Style Guide (v3.12+)](#61-python-style-guide-v312)
     * [6.2 PHP & WordPress Style Guide (v8.3+)](#62-php--wordpress-style-guide-v83)
     * [6.3 JavaScript & TypeScript Style Guide (ES2024)](#63-javascript--typescript-style-guide-es2024)
     * [6.4 HTML & CSS/SCSS Style Guide](#64-html--cssscss-style-guide)
-7. [Configuration, File Operations, and Logging](#7-configuration-file-operations-and-logging)
+7. [Working with Configuration, Files, and Logging](#7-working-with-configuration-files-and-logging)
 8. [AI Coding Rules](#8-ai-coding-rules)
 9. [Appendices and Templates](#9-appendices-and-templates)
 
@@ -24,82 +24,160 @@
 
 ## 1. Introduction and Scope
 
-This document establishes the **Unified Engineering Standard** (Engineering Standard v1.0) for the intelligent assistant ecosystem. The standard is designed as a governing technical regulation for human developers and as a system instruction for AI assistants (LLMs) participating in the writing, refactoring, and auditing of the codebase.
+This document defines the **Unified Engineering Standard** (Engineering Standard v1.0) for the intelligent assistant ecosystem. The standard is designed as a guiding technical regulation for developers and as a system instruction for AI assistants (LLMs) involved in writing, refactoring, and auditing the codebase.
 
 ### 1.1 Scope
-The requirements of this standard apply to:
-* All new and existing source files across all project repositories [1].
-* Architectural decisions, directory structures, configuration storage formats, and secrets management.
-* Code formatting, comment structures, and automatic documentation generation [1].
+The standard applies to:
+* All new and existing source files in all project repositories.
+* Architectural decisions, directory structures, and formats for configuration and secret storage.
+* Code formatting, comment structures, and auto-documentation generation.
 
 ---
 
 ## 2. Normative Keywords (RFC 2119)
 
-To ensure unambiguous interpretation of requirements, this standard employs the compliance terminology defined in RFC 2119:
+To ensure unambiguous interpretation of requirements, the following keywords are used in accordance with the RFC 2119 specification:
 
-* **MUST**: This word means that the definition is an absolute requirement of the specification. Failure to comply with this requirement is a critical error.
-* **MUST NOT**: This phrase means that the definition is an absolute prohibition of the specification.
-* **SHOULD**: This word means that there may exist valid reasons in particular circumstances to ignore a particular rule, but the developer (or AI) MUST fully understand and carefully weigh the implications of choosing a different path and document the justification.
-* **SHOULD NOT**: This phrase means that the particular behavior is not recommended, requiring a detailed technical justification when implemented.
-* **MAY**: This word means that an item is truly optional.
+* **MUST (REQUIRED)**: An absolute requirement for implementation. Failure to comply makes the codebase unacceptable for integration.
+* **MUST NOT (PROHIBITED)**: An absolute prohibition on using a construct, method, or pattern.
+* **SHOULD (RECOMMENDED)**: Means that there may be valid reasons for deviating from the rule, but the developer (or AI) must fully evaluate the consequences, document the reasoning, and weigh the risks.
+* **SHOULD NOT (NOT RECOMMENDED)**: Means the practice is undesirable and requires detailed technical justification if implemented.
+* **MAY (OPTIONAL)**: A completely optional action or tool choice.
 
 ---
 
 ## 3. Fundamental Architectural Principles
 
-All technical decisions within the project MUST align with the following high-priority principles:
+All technical decisions within the project **MUST** comply with the following priority principles:
 
 ### 3.1 Readability Over Cleverness
-Code is written for subsequent reading by humans or analysis by AI. Using hidden syntax tricks that reduce readability MUST NOT be permitted merely to save a few lines of code.
+Code is written for subsequent reading by humans or AI analysis. Use of hidden syntax tricks that degrade readability **MUST NOT** be permitted for the sake of saving lines of code.
 
-### 3.2 Single Responsibility Principle (SRP)
-Every module, class, and function MUST solve only one logical task. If a function performs several unrelated actions, it SHOULD be decomposed.
+### 3.2 Single Responsibility Principle
+Each module, class, and function **MUST** solve only one logical task. If a function performs multiple unrelated actions, it **SHOULD** be separated.
 
 ### 3.3 Explicit is Better than Implicit
-* Dependency passing MUST be performed explicitly (Dependency Injection).
-* Global state within the codebase MUST NOT be used; all shared parameters MUST be passed through a controlled configuration object `Config` (or a similar singleton context).
+* Dependency injection **MUST** be performed explicitly.
+* Global state of the codebase **MUST NOT** be used; all shared parameters **MUST** be passed through a controlled `Config` object (or similar singleton context).
 
 ### 3.4 Early Return & Fail-Fast
-Functions MUST terminate execution immediately upon detecting invalid input parameters or failing preconditions.
+Functions **MUST** terminate execution immediately upon detecting invalid input or failure to meet preconditions.
 
 ```python
-# ✅ Recommended Format (Early Return)
+# ✅ Recommended format (Early Return)
 def process_user_data(data: dict) -> bool:
     if not data:
          return False
-    # Execution of the main logic
+    # Main logic execution
     return True
 
-# ❌ Non-Recommended Format (Deep Nesting)
+# ❌ Undesirable format (Deep nesting)
 def process_user_data(data: dict) -> bool:
     if data:
-         # Execution of the main logic
+         # Main logic execution
          return True
     return False
 ```
 
+### 3.5 Configuration over Hardcode
+Hardcoded parameters in the application source code **MUST NOT** be used. All parameters, including network ports, URLs, timeouts, directory paths, limits, and operational modes, **MUST** be read from an external JSON configuration file (via the `config` object) or environment variables.
+
+* **❌ Incorrect:**
+  ```python
+  port = 8000
+  ```
+* **✅ Correct:**
+  ```python
+  port = config.port
+  ```
+
+### 3.6 Categorical Prohibition of Using and Referencing `None`
+Use of the keyword `None`, as well as any explicit or implicit references to it in the source code, is **STRICTLY PROHIBITED** (**MUST NOT**). Excluding this object is a fundamental requirement for type stability.
+
+#### 3.6.1 Absolute Prohibition of `None` in Function Signatures (Default Parameters)
+Function arguments **MUST NOT** accept `None` as a default value. Signatures **MUST** use empty default values of corresponding data types. `Optional[...]` is allowed only if the default value is strictly defined as a type other than `None` (e.g., `Optional[int] = 0`).
+
+* **❌ Bad:**
+  ```python
+  def execute_connection(self, timeout: Optional[int] = None, input_str: Optional[str] = None) -> Self:
+  ```
+* **✅ Good:**
+  ```python
+  def execute_connection(self, timeout: Optional[int] = 0, input_str: Optional[str] = '') -> Self:
+  ```
+
+#### 3.6.2 Prohibition in Variable Initialization and Class Properties
+Local, global variables, and class properties **MUST NOT** be initialized with `None`. Variables **MUST** be initialized only with empty values of corresponding types:
+* Numeric types (`int`, `float`): `0` or `0.0`.
+* String types (`str`): `''` (empty string).
+* Boolean types (`bool`): `False`.
+* Collections (`list`, `dict`): `[]` or `{}`.
+
+* **❌ Bad:**
+  ```python
+  str_output = None
+  dict_output = None
+  ```
+* **✅ Good:**
+  ```python
+  str_output = ''
+  dict_output = {}
+  ```
+
+#### 3.6.3 Prohibition in Comparison Operators
+Operators `is None` and `is not None` are **STRICTLY PROHIBITED** (**MUST NOT**). State validation **MUST** be performed via boolean truthiness or explicit validation of default values.
+
+* **❌ Bad:**
+  ```python
+  if connection is None:
+      ...
+  ```
+* **✅ Good:**
+  ```python
+  if not connection:
+      ...
+  ```
+
+#### 3.6.4 Prohibition of `None` Returns and Implicit Returns
+For the sake of eliminating ambiguity and improving type strictness, functions **MUST NOT** return `None` or use an empty `return` operator (which implicitly returns `None`).
+
+Upon failure, lack of data, early exit, or error, functions **MUST** explicitly return `False` (or `false` for JS/PHP/HTML).
+
+* **❌ Incorrect:**
+  ```python
+  return
+  # or
+  return None
+  ```
+* **✅ Correct:**
+  ```python
+  return False
+  ```
+
 ---
 
-## 4. General Design Rules and Code Smells Mitigation
+## 4. General Design Rules and Code Smells Elimination
 
-To maintain the quality of the architecture, the following structural complexity limits are established:
+To maintain architectural quality, the following structural complexity limits are enforced:
 
 ### 4.1 Nesting Limit
-The nesting depth of loops and conditional statements inside a single function SHOULD NOT exceed **3 levels**. If nesting is deeper, it is a clear signal for functional decomposition.
+Nesting depth of loops and conditionals within a single function **SHOULD NOT** exceed **3 levels**. If nesting goes deeper, it is a clear indicator that the function needs to be decomposed.
 
-### 4.2 Avoid Duplication (DRY)
-Duplication of similar logic across multiple modules MUST NOT be permitted. Identical operations (e.g., API requests to OpenAI-compatible endpoints of various providers) MUST be unified into generic connectors parametrized through configuration.
+### 4.2 DRY (Don't Repeat Yourself)
+Duplicate logic **MUST NOT** be permitted across modules. Identical operations (e.g., requesting OpenAI-compatible APIs across different providers) **MUST** be unified into parameterized, general-purpose connectors.
 
 ### 4.3 Dead Code
-Unused variables, imports, functions, and dead files MUST be deleted immediately after refactoring. Retaining commented-out code "for the future" MUST NOT be permitted.
+Unused variables, imports, and functions **MUST** be removed immediately after refactoring. Leaving commented-out code "for the future" **MUST NOT** be permitted.
+
+### 4.4 Function Size Limit
+The physical size of any function (excluding comments/docstrings) **MUST NOT** exceed **300 lines of code**. If the limit is exceeded, the function **MUST** be decomposed. The process must be split into multiple isolated, easily testable helper functions, while the main function serves as a dispatcher coordinating them according to the workflow scenario.
 
 ---
 
 ## 5. Commenting and Documentation Standards
 
-### 5.1 Philosophy of Comments: "Why", Not "What"
-Comments in the code SHOULD explain the engineering decisions and logical premises behind choosing a specific implementation path, rather than duplicating the syntax of the language.
+### 5.1 Comment Philosophy: "Why" over "What"
+Comments in the code **SHOULD** explain the engineering rationale rather than duplicate code syntax.
 
 ```javascript
 // ✅ Correct: explanation of structural choices and performance reasoning
@@ -111,80 +189,80 @@ const activeConnections = new Set();
 const activeConnections = new Set();
 ```
 
-### 5.2 Use of Deverbal Nouns in Comments
-When writing comments in Russian (permitted for Python and PowerShell), instead of verbs or verbal participles, **deverbal nouns** (отглагольные существительные) expressing a process or state MUST be used.
+### 5.2 Use of Verbal Nouns in Comments
+When writing comments in Russian (permitted for Python and PowerShell), instead of verb forms (verbs, participles), developers **MUST** use **verbal nouns** that express a process or state.
 
-* **Bad:** `// Отправляет запрос`, `// Суммаризирует текст`, `// Объединяет данные`
-* **Good:** `// Отправка запроса`, `// Суммаризация текста`, `// Объединение данных`
+* **Bad:** `// Отправляет запрос` (Sends request), `// Суммаризирует текст` (Summarizes text)
+* **Good:** `// Отправка запроса` (Request sending), `// Суммаризация текста` (Text summarization)
 
-For English comments (mandatory for the entire Web stack and PHP; recommended for others), nouns or gerunds expressing a process SHOULD be used: e.g., `Initialization`, `Verification`, `Loading`, `Execution` (instead of verbs like `Initializes`, `Verifies`, `Loads`).
+For English comments (web stack and PHP), developers **SHOULD** use Nouns or Gerunds that express a process: `Initialization`, `Verification`, `Loading`, `Execution` (instead of verbs like `Initializes`, `Verifies`, `Loads`).
 
 ### 5.3 Commenting Language Zones
-Language restrictions in comments are established to prevent Unicode breakage, file encoding corruption, and critical interpretation errors in web and PHP environments.
+Commenting language restrictions are enforced to prevent Unicode breakage, files corruption, and parsing errors in web environments and PHP.
 
-| File Extensions | Code Comments | Documentation (Docstrings / JSDoc) | File Headers (Header Blocks) | Reason for Restriction |
+| File Extensions | Comments in Code | Documentation (Docstrings / JSDoc) | File Headers (Header Blocks) | Restriction Rationale |
 | :--- | :--- | :--- | :--- | :--- |
-| `.js`, `.ts`, `.jsx`, `.tsx` | **English only** | **English only** | **English only** | **MUST NOT** contain Cyrillic characters to prevent Unicode corruption in web environments. |
-| `.css`, `.scss`, `.sass` | **English only** | **English only** | **English only** | **MUST NOT** contain Cyrillic characters to prevent Unicode corruption during asset compilation. |
-| `.html` | **English only** | — | **English only** | **MUST NOT** contain Cyrillic characters to prevent encoding issues during page rendering. |
-| `.php` | **English only** | **English only** | **English only** | **MUST NOT** contain Cyrillic characters to prevent parsing errors and Unicode corruption in PHP environments. |
-| `.py`, `.ps1` | **Russian / English** | **Russian / English** | **Russian / English** | Cyrillic characters are allowed (strictly UTF-8 without BOM). |
+| `.js`, `.ts`, `.jsx`, `.tsx` | **English only** | **English only** | **English only** | **MUST NOT** contain Cyrillic to avoid Unicode breakage in web environments. |
+| `.css`, `.scss`, `.sass` | **English only** | **English only** | **English only** | **MUST NOT** contain Cyrillic to avoid Unicode breakage during asset compilation. |
+| `.html` | **English only** | — | **English only** | **MUST NOT** contain Cyrillic to prevent encoding issues during page rendering. |
+| `.php` | **English only** | **English only** | **English only** | **MUST NOT** contain Cyrillic to prevent parsing errors and Unicode breakage in PHP runtime. |
+| `.py`, `.ps1` | **Russian / English** | **Russian / English** | **Russian / English** | Cyrillic is permitted (strictly UTF-8 without BOM). |
 
-### 5.4 Function Documentation Standard (`hypo69 docblock`)
-A single unified section structure MUST be used for all public methods, functions, and classes across all programming languages.
+### 5.4 Standard for Documenting Functions (`hypo69 docblock`)
+For all public methods, functions, and classes across all languages, developers **MUST** use a single unified section format.
 
-#### Exclusion of Sphinx and reStructuredText
-Using Sphinx/reST constructs (such as `.. module::`, `:platform:`, `:synopsis:`, `:param:`, `:returns:`) MUST NOT be permitted. If such blocks are found in existing code, they MUST be removed and replaced with the standard format.
+#### Sphinx and reStructuredText Exclusion
+Use of Sphinx/reST keywords (such as `.. module::`, `:platform:`, `:synopsis:`, `:param:`, `:returns:`) **MUST NOT** be permitted. If such blocks are found in existing code, they **MUST** be removed and replaced with the standard format.
 
-#### Section Structure
-The order and naming of sections in Docstrings/Docblocks MUST strictly correspond to the following format:
+#### Structure of Sections
+The order and naming of sections in a Docstring/Docblock **MUST** strictly follow this schema:
 
 ```text
-Short Description        ← Single line summarizing the entity
-Long Description         ← (Optional) Detailed explanation of the implementation choices
+Short Description        ← One-line description of the entity's purpose
+Long Description         ← (Optional) Detailed explanation of implementation choices
 
 Args:
-    param_name (type): Parameter description, constraints, and default values.
+    param_name (type): Parameter description, constraints, and defaults.
 
 Returns:
-    type: Description of the return value and return conditions.
+    type: Description of the return value and conditions of return.
 
 Exceptions:
     ErrorType: Conditions under which the exception is thrown.
 
 Examples:
-    An executable example of the function invocation.
+    An example call shown as executable code.
 ```
 
-* The sections `Args:`, `Returns:`, `Exceptions:`, and `Examples:` — MUST be present for every public function. If a section is not applicable (e.g., no exceptions or parameters), it is omitted.
-* The order of sections MUST NOT be altered.
-* The term `Params:` — PROHIBITED; only `Args:` MUST be used.
-* The term `Raises:` — PROHIBITED; only `Exceptions:` MUST be used.
-* The `Examples:` section MUST contain a minimal working code example that can be copied and tested directly.
+* Sections `Args:`, `Returns:`, `Exceptions:`, `Examples:` — **MUST** be present for every public function. If a section is not applicable (e.g., no exceptions), it is omitted.
+* Section order **MUST NOT** be altered.
+* The word `Params:` — PROHIBITED; only `Args:` is used.
+* The word `Raises:` — PROHIBITED; only `Exceptions:` is used.
+* The `Examples:` section **MUST** contain a minimal working example that can be copied and tested.
 
 ---
 
-## 6. Language Style Guides
+## 6. Language Development Standards
 
 ### 6.1 Python Style Guide (v3.12+)
 
-Development in Python MUST utilize the modern features of versions 3.12+ (use of `pathlib`, `enum.StrEnum`, `match`, `@override`, `typing.Self`, `Protocol`, `TypedDict`).
+Development in Python **MUST** use modern features of versions 3.12+ (use of `pathlib`, `enum.StrEnum`, `match`, `@override`, `typing.Self`, `Protocol`, `TypedDict`).
 
-#### Python File Header
-Every Python file MUST begin with the following structured header:
+#### Python File Header Block Template
+Every Python file **MUST** begin with the following structured header:
 
 ```python
 # -*- coding: utf-8 -*-
 # =============================================================================
-# Process Name: Integration with Local Foundry Server
+# Process Name: Foundry Local Server Integration
 # =============================================================================
 # Description:
-#   Managing interaction with Foundry API via HTTP protocol.
-#   Verifying port availability and process management.
+#   Foundry API interaction management via HTTP protocol.
+#   Port availability checks and process management execution.
 #
 # Examples:
 #   >>> from src.foundry import FoundryConnector
-#   >>> connector = FoundryConnector(port=3000)
+#   >>> connector = FoundryConnector(port=config.port)
 #   >>> connector.verify_status()
 #
 # File: foundry_connector.py
@@ -198,11 +276,11 @@ Every Python file MUST begin with the following structured header:
 # =============================================================================
 ```
 
-#### Grouping of Imports
-Imports MUST be ordered alphabetically and separated into three distinct logical blocks with an empty line:
-1. Standard library imports (stdlib).
-2. Third-party library imports.
-3. Local project imports, starting from the root import.
+#### Import Grouping
+Imports **MUST** be sorted alphabetically and separated into three clear logical blocks with an empty line:
+1. Standard libraries (stdlib).
+2. Third-party libraries.
+3. Current project imports, starting with the root import.
 
 ```python
 import os
@@ -218,44 +296,46 @@ from src.logger import logger
 from src.utils.printer import pprint
 ```
 
-#### Python Class and Function Implementation Example
+#### Class and Function Example in Python
 ```python
 from typing import Self, Optional
 
 class FoundryConnector:
-    """Establishment of connection with the Foundry API.
+    """Foundry API connection management.
 
-    Management of local processes and monitoring of port state.
+    Local process control and network port monitoring.
 
     Attributes:
-        port (int): Network port of the server.
+        port (int): Server network port number.
         status (str): Current connection state.
     """
 
     def __init__(self, port: int) -> None:
-        """Initialization of the connection object."""
+        """Connection object initialization."""
         self.port: int = port
         self.status: str = "disconnected"
 
-    def execute_connection(self, timeout: Optional[int] = None) -> Self:
-        """Initiation of the connection process to the server.
+    def execute_connection(self, timeout: Optional[int] = 0, input_str: Optional[str] = '') -> Self:
+        """Connection process startup.
 
         Args:
-            timeout (Optional[int]): Maximum waiting time in seconds.
-                                     Default value: None.
+            timeout (Optional[int]): Max waiting time in seconds.
+                                     Default value: 0.
+            input_str (Optional[str]): Input initialization string.
+                                       Default value: ''.
 
         Returns:
-            Self: Current instance for supporting method chaining.
+            Self: Current instance for method chaining.
 
         Exceptions:
-            ConnectionError: Failure during socket initialization when the port is unavailable.
+            ConnectionError: Socket initialization failure when port is unavailable.
 
         Examples:
-            >>> connector = FoundryConnector(port=3000)
-            >>> connector.execute_connection(timeout=10)
+            >>> connector = FoundryConnector(port=config.port)
+            >>> connector.execute_connection(timeout=10, input_str='init')
             <FoundryConnector object at 0x...>
         """
-        # Verification of port initialization before connection startup
+        # Port initialization check before connection startup
         if self.port <= 0:
             raise ConnectionError("Invalid port number")
 
@@ -267,12 +347,12 @@ class FoundryConnector:
 
 ### 6.2 PHP & WordPress Style Guide (v8.3+)
 
-PHP development is aligned with modern PHP 8.3+ and WordPress development standards.
-* The use of deprecated code is prohibited; all plugin logic SHOULD be encapsulated within Singleton classes.
-* Use of nonce verifications, sanitization, and output escaping is mandatory.
-* **Cyrillic characters are completely prohibited** in the source code of PHP files (including headers and comments) to prevent Unicode breakage.
+Development in PHP is focused on PHP 8.3+ and WordPress development standards.
+* Legacy code is prohibited; all plugin logic **SHOULD** be packaged into Singleton classes.
+* Nonce verification, sanitization, and output escaping are mandatory.
+* **Cyrillic is completely prohibited** in PHP source code (including headers and comments) to prevent Unicode corruption.
 
-#### PHP File Header
+#### PHP File Header Block Template
 ```php
 <?php
 # -*- coding: utf-8 -*-
@@ -318,6 +398,7 @@ class Post_Metadata {
         if ( null === self::$instance ) {
             self::$instance = new self();
         }
+
         return self::$instance;
     }
 
@@ -325,6 +406,13 @@ class Post_Metadata {
      * Constructor.
      */
     private function __construct() {
+        $this->init_hooks();
+    }
+
+    /**
+     * Hook initialization.
+     */
+    private function init_hooks() {
         add_action( 'save_post', [ $this, 'save_custom_fields' ], 10, 2 );
     }
 
@@ -372,10 +460,10 @@ class Post_Metadata {
 
 ### 6.3 JavaScript & TypeScript Style Guide (ES2024)
 
-When writing scripts, ES2024 standard MUST be followed (asynchrony via `async/await`, destructuring, optional chaining `?.`, nullish coalescing `??`).
-* **Cyrillic characters are completely prohibited** in the source code of JS/TS files (including headers and comments) to prevent Unicode breakage.
+When writing scripts, ES2024 standards **MUST** be used (asynchrony via `async/await`, destructuring, optional chaining `?.`, nullish coalescing `??`).
+* **Cyrillic is completely prohibited** in JS/TS source files (including headers and comments) to prevent Unicode corruption.
 
-#### JS/TS File Header
+#### JS/TS File Header Block Template
 ```javascript
 /**
  * =============================================================================
@@ -386,8 +474,8 @@ When writing scripts, ES2024 standard MUST be followed (asynchrony via `async/aw
  *   Provides dynamic authorization headers configuration based on provider parameters.
  *
  * Examples:
- *   const client = new ApiClient('https://api.openai.com/v1');
- *   await client.fetchData('/chat/completions', { model: 'gpt-4o' });
+ *   const client = new ApiClient(config.openai.baseUrl);
+ *   await client.fetchData('/chat/completions', { model: config.openai.model });
  *
  * File: api-client.js
  * Project: Our Intelligent Assistant
@@ -425,8 +513,8 @@ class ApiClient {
      *   Error — Thrown on network timeout or failed status codes.
      *
      * Examples:
-     *   const client = new ApiClient('https://api.example.com');
-     *   const response = await client.postData('/submit', { id: 10 });
+     *   const client = new ApiClient(config.api.baseUrl);
+     *   const response = await client.postData('/submit', { id: config.api.id });
      */
     async postData(endpoint, payload) {
         // Checking of endpoint parameter existence
@@ -456,7 +544,7 @@ class ApiClient {
 
 ### 6.4 HTML & CSS/SCSS Style Guide
 
-* **Cyrillic characters are completely prohibited** in the source code of HTML/CSS/SCSS files (including headers and comments) to prevent Unicode breakage.
+* **Cyrillic is completely prohibited** in HTML/CSS/SCSS source files (including headers and comments) to prevent Unicode corruption.
 
 #### HTML File Header Template
 ```html
@@ -498,49 +586,52 @@ Copyright: © 2026 hypo69
 
 ---
 
-## 7. Configuration, File Operations, and Logging
+## 7. Working with Configuration, Files, and Logging
 
-### 7.1 Input/Output Operations (Files and JSON)
-All file operations in Python MUST be executed exclusively through specialized wrapper functions from the project's utility library:
+### 7.1 File I/O Operations (Files and JSON)
+All file operations in Python **MUST** be performed only via specialized wrappers from the project's utility library:
 * **Reading data:** `j_loads()`, `j_loads_ns()`, `read_text_file()`.
 * **Writing data:** `j_dumps()`, `save_text_file()`.
 
 #### Utility Features:
-These functions automatically perform I/O error logging and create the missing directory structure (when writing).
+These functions automatically perform error logging and handle folder creation (for write operations).
 
-#### Rule for Processing Results:
-Because these utility functions internally handle all filesystem exceptions, perform mandatory logging, and return a falsy value (or a safe default) on failure, **no exceptions will be propagated** to the caller. 
+#### Result Handling Rule:
+Since these utilities handle file system exceptions internally, log failures, and return a falsy value (`False`) on failure, **exceptions will not propagate** to the caller.
 
-Wrapping calls to these utilities in `try/except` blocks is logically redundant and MUST NOT be done. Instead, the caller MUST verify the execution result explicitly by checking if the returned data is falsy.
+Wrapping wrapper utility calls in `try/except` blocks is redundant and **PROHIBITED** (**MUST NOT**). Because the utilities log failures automatically, the caller **MUST NOT** log them again (to prevent log duplication). The caller must only handle business logic and perform an early return.
 
 ```python
-# ✅ Correct: Explicit checking of the returned falsy value (e.g., None, False, or empty structure)
-# Note: No try/except is needed because j_loads handles and logs exceptions internally.
+# ✅ Correct: Explicit return value verification without duplicate logging
+# Note: j_loads logs the error internally on failure.
+# The caller simply performs an early return without redundant logging.
 config_data = j_loads(config_path)
 if not config_data:
-    logger.error(f"Failed to load configuration file: {config_path}")
-    return None
+    return False
 
-# ❌ Incorrect: Logically redundant try/except wrapping
-# Note: This except block will never execute because j_loads internally catches and logs all exceptions.
+# ❌ Incorrect: Redundant logging and useless try/except
+# Note: An exception will not be raised, and double logging spams logs.
 try:
     config_data = j_loads(config_path)
+    if not config_data:
+        logger.error(f"Failed to load file")  # Log duplication!
+        return False
 except Exception as e:
-    logger.error("File system error occurred", e)  # Redundant dead code
+    logger.error("FS Error", e)  # Dead code, this block will never execute
 ```
 
 ### 7.2 Separation of Configurations and Secrets
-Application parameters are divided into two categories: public settings and private settings (secrets).
+Application parameters are separated into public configuration and private secrets.
 
-| Category | Storage Method | Distribution Mechanism | Example |
+| Type | Storage Method | Distribution Mechanism | Example |
 | :--- | :--- | :--- | :--- |
-| **Public** | `config.json` | Stored in the Git repository | Ports, timeouts, paths to RAG indexes |
-| **Secret** | `.env` | **MUST NOT** be committed to Git (added to `.gitignore`) | API keys, JWT secrets, DB passwords |
+| **Public** | `config.json` | Stored in Git repository | Ports, timeouts, RAG paths |
+| **Secret** | `.env` | **MUST NOT** be in Git (added to `.gitignore`) | API keys, JWT secrets, DB passwords |
 
-#### Use of Environment Variables Inside JSON
-Direct specifications of secret values in the public `config.json` file are prohibited. A strictly defined placeholder format MUST be used for referencing secrets: `"${ENVIRONMENT_VARIABLE_NAME}"`.
+#### Using Environment Variables inside JSON
+Directly hardcoding secret values in `config.json` is prohibited. Placeholder references **MUST** be used in this format: `"${ENVIRONMENT_VARIABLE_NAME}"`.
 
-The system environment variable processor automatically substitutes values from `.env` in place of these placeholders during application startup.
+The environment variable handler automatically replaces placeholders with `.env` values at startup.
 
 ```json
 {
@@ -551,28 +642,28 @@ The system environment variable processor automatically substitutes values from 
 }
 ```
 
-#### Mandatory Environment Variables (.env.example)
-When adding any new secret to the codebase, its placeholder MUST simultaneously be added to the `.env.example` file with a description of its purpose:
+#### Required Environment Variables (.env.example)
+When adding any new secret, its placeholder **MUST** be simultaneously added to `.env.example` with a description:
 
 ```env
-# HuggingFace token for working with closed models
+# HuggingFace token for restricted models access
 HUGGING_FACE_TOKEN=hf_your_token_here
 
-# Network parameters of the local Foundry environment
+# Local Foundry network parameters
 FOUNDRY_BASE_URL=http://localhost
 FOUNDRY_DYNAMIC_PORT=3000
 ```
 
-### 7.3 Logging and Information Output
-* Log output across all execution environments MUST be routed exclusively through the project's standard logger object `src.logger.logger`.
-* The use of the system call `print()` for outputting information to the console **MUST NOT** be permitted in production code.
-* For debug printing of complex structures to the console (in the development environment), the `pprint` pretty-print utility MUST be used.
+### 7.3 Logging and Output
+* Log output across environments **MUST** be executed only via the standard project logger: `src.logger.logger`.
+* Using `print()` **MUST NOT** be permitted in production code.
+* For pretty-printing complex structures in development environments, the `pprint` utility **MUST** be used.
 
 ```python
-# ✅ Logging an error with an exception
+# ✅ Exception logging
 logger.error("API connector initialization failure", ex, exc_info=True)
 
-# ✅ Printing a debugging structure
+# ✅ Debug print
 pprint(debug_data_structure)
 ```
 
@@ -580,51 +671,55 @@ pprint(debug_data_structure)
 
 ## 8. AI Coding Rules
 
-AI assistants working with the project's codebase ARE OBLIGATED to strictly follow these protocols for code analysis and modification:
+AI assistants working with the project codebase are REQUIRED to strictly follow these protocols when analyzing and modifying files:
 
-### 8.1 Pre-Analysis Protocol
-1. Before modifying a file, the AI **MUST** read the file in its entirety and analyze its imports structure, comments, and architectural relationships.
-2. The AI **MUST** align the proposed changes with the general architectural principles of the project (Early Return, DRY, Single Responsibility).
+### 8.1 Preliminary Analysis Protocol
+1. Before modifying a file, the AI **MUST** read the file in its entirety to analyze imports, comments, and architectural relationships.
+2. The AI **MUST** align changes with the project's architectural principles (Early Return, DRY, Single Responsibility).
 
-### 8.2 Modification and Integrity Protocol
-1. **No Refactoring for the Sake of Refactoring:** The AI **MUST NOT** rewrite correctly functioning code merely to alter visual style, unless the current code violates this engineering standard.
-2. **Preservation of Existing API:** When making changes, the AI **MUST** preserve the signatures of public methods, classes, and backward-compatibility interfaces, unless otherwise explicitly stated in the task.
-3. **Prohibition of Incomplete Blocks:** Generating placeholder comments, such as `// TODO: implement later`, `/* FIXME */`, or inserting empty stub structures instead of writing concrete logic **MUST NOT** be permitted.
-4. **Preservation of System Comments:** Debugging symbols (lines with ellipses `...`), as well as auto-generated headers containing file metadata, **MUST** be carefully preserved in their original state.
+### 8.2 Modification and Integrity Preservation Protocol
+1. **No refactoring for the sake of refactoring:** The AI **MUST NOT** rewrite working code to match style preferences unless the code violates this engineering standard.
+2. **Preserve existing APIs:** The AI **MUST** preserve public method signatures, classes, and backward compatibility unless explicitly instructed otherwise.
+3. **No incomplete blocks:** Generating marker comments like `// TODO: implement later` or empty placeholders instead of writing logic **MUST NOT** be permitted.
+4. **Preserve system comments:** Ellipsis debug lines (`...`) and auto-generated file header metadata blocks **MUST** be preserved.
 
 ---
 
 ## 9. Appendices and Templates
 
-### 9.1 Template for README.md in Project Directories
-A `README.md` file describing its structure and functional purpose **MUST** reside within every directory of the project. The file MUST be constructed according to the following strict template:
+### 9.1 README.md Template for Project Directories
+Every directory **MUST** contain a `README.md` file describing its structure and purpose. The file is written according to this strict template:
 
 ```markdown
 # Directory Name (e.g., src/utils)
 
 ## Description
-A brief description of the purpose of this folder and its role in the global project architecture.
+A brief description of this folder's purpose and its role in the overall architecture.
 
-## File and Module Overview
-* `printer.py` — Pretty printing of complex data structures to the console.
+## Files and Modules Overview
+* `printer.py` — Pretty-printing of complex data structures in the console.
 * `json_processor.py` — Safe reading, parsing, and writing utilities for JSON files.
 
 ## Dependencies and Relations
-* The module is imported across all application levels to facilitate utility operations.
+* Imported by all application layers for helper operations.
 * Depends on system data serialization utilities.
 ```
 
-### 9.2 Quality Control Commit Checklist
-Before completing a task and committing changes to the repository, the developer or AI assistant **MUST** perform a verification according to the following checklist:
+### 9.2 Final Quality Control Checklist (Commit Checklist)
+Before completing a task and committing, developers or AI assistants **MUST** verify their work against this checklist:
 
-* [ ] Every modified or created source file contains a completed, standard file header (Header Block) matching its programming language.
-* [ ] All created public methods, classes, and functions contain a detailed Docstring/Docblock in the `hypo69 docblock` format (Args, Returns, Exceptions, Examples).
-* [ ] Any Sphinx/reStructuredText constructs are entirely excluded from all sections of the documentation.
-* [ ] Comment language zones are strictly observed (Web and PHP — English only; Python — Russian/English).
-* [ ] In Russian comments, verbs are replaced by deverbal nouns (e.g., "Инициализация подключения" instead of "Инициализирует подключение").
-* [ ] In English comments for Web and PHP, only nouns or gerunds are used (`Initialization`, `Verification`, `Loading`, `Execution`).
-* [ ] Cyrillic characters are completely absent in JS, PHP, HTML, and CSS files to prevent Unicode breakage.
-* [ ] The code contains no `print()` calls; all outputs are routed through `logger` or `pprint`.
-* [ ] All new secret parameters are moved to `.env` (and their placeholders are added to `.env.example`), and references to them in `config.json` are formatted as `"${VAR_NAME}"`.
-* [ ] File read and write operations for JSON/text are executed via wrappers (`j_loads`, `save_text_file`, etc.) with explicit result validation and without redundant `try/except` blocks.
-* [ ] Unused temporary files, dead code, and commented-out logic blocks are entirely removed. In altered directories, `README.md` files are updated or created.
+* [ ] Every created or modified file contains the standard header block for its programming language.
+* [ ] All public methods, classes, and functions contain a `hypo69 docblock` (Args, Returns, Exceptions, Examples).
+* [ ] Sphinx/reStructuredText keywords are excluded from documentation.
+* [ ] Language commenting zones are observed (Web/PHP: English only; Python: Russian/English).
+* [ ] Russian comments use verbal nouns (e.g., "Инициализация" instead of "Инициализирует").
+* [ ] English web stack and PHP comments use Gerunds or Nouns (`Initialization`, `Execution`).
+* [ ] JS, PHP, HTML, CSS files do not contain Cyrillic characters.
+* [ ] No `print()` statements are in the code; logging uses `logger` or `pprint`.
+* [ ] New secrets are in `.env` (with placeholders in `.env.example`), and references in `config.json` use `"${VAR_NAME}"`.
+* [ ] I/O operations are handled via wrappers (`j_loads`, `save_text_file`) with falsy checks, without duplicate logging or redundant `try/except` blocks.
+* [ ] No function or method returns `None` or uses an implicit empty `return`. Failure cases return `False` (or `false`).
+* [ ] The keyword `None` and any references to it (defaults, initialization, comparisons) are completely excluded from the code. Variables use type-specific empty defaults (`0`, `''`, `[]`, `{}`).
+* [ ] No parameters are hardcoded. Ports, timeouts, and URLs are loaded dynamically via `config` or environment variables.
+* [ ] The physical size of any function body (excluding comments/docstrings) does not exceed 300 lines of code. Large functions are decomposed.
+* [ ] No temporary files, dead code, or commented-out logic remain in directories. README.md files are updated.
