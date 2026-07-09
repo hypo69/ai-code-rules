@@ -28,9 +28,9 @@ This document establishes the **Unified Engineering Standard** (Engineering Stan
 
 ### 1.1 Scope
 The requirements of this standard apply to:
-* All new and existing source files across all project repositories.
+* All new and existing source files across all project repositories [1].
 * Architectural decisions, directory structures, configuration storage formats, and secrets management.
-* Code formatting, comment structures, and automatic documentation generation.
+* Code formatting, comment structures, and automatic documentation generation [1].
 
 ---
 
@@ -509,20 +509,24 @@ All file operations in Python MUST be executed exclusively through specialized w
 These functions automatically perform I/O error logging and create the missing directory structure (when writing).
 
 #### Rule for Processing Results:
-Calls to file utilities **MUST NOT** be wrapped in `try/except` blocks. Instead, execution results MUST be verified explicitly in the code by checking the returned data:
+Because these utility functions internally handle all filesystem exceptions, perform mandatory logging, and return a falsy value (or a safe default) on failure, **no exceptions will be propagated** to the caller. 
+
+Wrapping calls to these utilities in `try/except` blocks is logically redundant and MUST NOT be done. Instead, the caller MUST verify the execution result explicitly by checking if the returned data is falsy.
 
 ```python
-# ✅ Correct: Explicit checking of the return value without redundant error catching
+# ✅ Correct: Explicit checking of the returned falsy value (e.g., None, False, or empty structure)
+# Note: No try/except is needed because j_loads handles and logs exceptions internally.
 config_data = j_loads(config_path)
 if not config_data:
     logger.error(f"Failed to load configuration file: {config_path}")
     return None
 
-# ❌ Incorrect: Redundant wrapping of a system function in try/except
+# ❌ Incorrect: Logically redundant try/except wrapping
+# Note: This except block will never execute because j_loads internally catches and logs all exceptions.
 try:
     config_data = j_loads(config_path)
 except Exception as e:
-    logger.error("File system error occurred", e)
+    logger.error("File system error occurred", e)  # Redundant dead code
 ```
 
 ### 7.2 Separation of Configurations and Secrets
