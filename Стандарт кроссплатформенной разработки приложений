@@ -1,0 +1,229 @@
+Это финальный, структурированный **Архитектурный стандарт разработки**, объединяющий все принятые технологические решения. 
+
+Документ описывает принципы создания единого веб-приложения (SPA), которое адаптируется под Web, Telegram Mini Apps (TMA) и ОС Android (включая мобильные устройства и вашу приставку **MAG на Android TV**). Также в него включены опция работы через ТВ-браузер и стандарт разработки утилиты речевого взаимодействия (TTS/STT) для трех языков (русский, английский, иврит).
+
+---
+
+# Единый стандарт разработки кроссплатформенного приложения
+**Платформы:** Web, Telegram Mini App, Android Mobile, Android TV (MAG на Android TV)  
+**Архитектурный паттерн:** Web-First (Single Page Application) с адаптерами сред  
+
+---
+
+## 1. Архитектурная концепция
+
+Приложение строится на базе одной веб-кодовой базы (например, React / Vue + TypeScript) и адаптируется под целевые платформы за счет изоляции логики сред и унифицированного API-клиента.
+
+```
+                  +----------------------------------------+
+                  |         Общее веб-приложение (SPA)     |
+                  +----------------------------------------+
+                                       |
+       +-------------------------------+-------------------------------+
+       |                               |                               |
+       v                               v                               v
+ [ Web / TMA ]               [ Mobile (Android) ]            [ MAG на Android TV ]
+(Стандартный веб)             (Capacitor Wrapper)            (Capacitor + D-pad)
+       |                               |                               |
+       +-------------------------------+-------------------------------+
+                                       |
+                                       v
+                  +----------------------------------------+
+                  |            API-клиент (Axios)          |
+                  |     (Динамический URL и авторизация)   |
+                  +----------------------------------------+
+```
+
+### Среды исполнения:
+1. **Web:** Доступ через стандартный браузер компьютера или мобильного.
+2. **Telegram Mini App (TMA):** Веб-приложение, запущенное внутри WebView Telegram, с инициализацией Telegram SDK.
+3. **Android (Mobile & MAG на Android TV):** Веб-приложение, упакованное с помощью **Capacitor.js** в нативный APK-пакет.
+4. **[Опция] Smart TV через браузер:** Возможность открыть веб-версию приложения в браузере любого телевизора.
+
+---
+
+## 2. Стандарт сетевого взаимодействия (API)
+
+Для работы приложения с локальным медиасервером и внешними сервисами API-клиент должен удовлетворять следующим требованиям:
+
+### 2.1. Динамический Базовый URL (Base URL)
+Поскольку сервер является локальным, клиент должен поддерживать переопределение IP-адреса.
+
+```typescript
+// services/apiClient.ts
+import axios from 'axios';
+
+const apiClient = axios.create({
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' }
+});
+
+apiClient.interceptors.request.use((config) => {
+  // На ТВ и в веб-интерфейсе адрес локального сервера берется из локальных настроек
+  const savedServerIp = localStorage.getItem('local_server_ip');
+  
+  if (savedServerIp) {
+    config.baseURL = `http://${savedServerIp}/api/v1`;
+  } else {
+    // Дефолтный fallback-адрес (например, облачный прокси-сервер)
+    config.baseURL = import.meta.env.VITE_DEFAULT_API_URL;
+  }
+  return config;
+});
+```
+
+### 2.2. Платформозависимая авторизация
+Клиент автоматически определяет среду выполнения и подставляет нужные заголовки:
+* **TMA:** Передается `InitDataRaw` от Telegram в заголовке `Authorization: tma <raw_data>`.
+* **Android TV / Mobile / Web:** Передается классический Bearer токен `Authorization: Bearer <token>` или сессионные данные.
+
+---
+
+## 3. Специфика сборки для Android (Мобильные и MAG на Android TV)
+
+Для сборки под Android используется **Capacitor.js**. Для совместимости одного APK-файла как с мобильными телефонами, так и с приставкой MAG на Android TV, в манифесте приложения настраивается поддержка ТВ-интерфейса.
+
+### Настройки `android/app/src/main/AndroidManifest.xml`:
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Приложению не обязательно иметь сенсорный экран -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- Объявляем поддержку ТВ-интерфейса -->
+    <uses-feature android:name="android.hardware.type.television" android:required="true" />
+
+    <application ...>
+        <activity ...>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                
+                <!-- Категория для корректного отображения в лаунчере Android TV / Google TV -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+```
+
+---
+
+## 4. [Опция] Стандарт адаптации интерфейса под ТВ (Пространственная навигация)
+
+Если пользователь открывает приложение на MAG на Android TV или через встроенный браузер любого другого телевизора, интерфейс должен переключаться на режим управления с пульта (D-pad).
+
+1. **Библиотека фокуса:** Для React используется `@noriginmedia/norigin-spatial-navigation` [3]. Она позволяет автоматически отслеживать фокус на кнопках и карточках фильмов с помощью стрелок пульта и подтверждать выбор кнопкой «ОК» [3].
+2. **Определение режима:** Если в системе не обнаружен тачскрин или зафиксировано первое нажатие клавиши пульта, приложение переходит в «ТВ-режим» (скрывает курсор мыши, увеличивает шрифт карточек, активирует сетку навигации).
+
+---
+
+## 5. Стандарт разработки утилиты голосового ввода (Text <-> Speech <-> Text)
+
+Для обеспечения стабильной работы утилиты на русском, английском и иврите на всех устройствах (где на старых ТВ-браузерах может отсутствовать встроенный синтез речи) принят **серверно-ориентированный (API-driven) стандарт**.
+
+```
+   [ КЛИЕНТ ]  -- (Запись звука через MediaRecorder) ->  [ POST /speech/transcribe ]  --> [ СЕРВЕР (STT: Whisper) ]
+                                                                                                  |
+   [ КЛИЕНТ ]  <- (Проигрывание через Audio API) <--  [ POST /speech/synthesize ]  <--  [ СЕРВЕР (TTS: Piper/Coqui) ]
+```
+
+### 5.1. Модуль Speech-to-Text (Распознавание речи)
+* **Технология на сервере:** **Faster-Whisper** (оптимизированный Whisper от OpenAI, развернутый локально). Отлично распознает русский, английский и иврит в рамках одной языковой модели.
+* **Технология на клиенте:** Запись звука через стандартный браузерный интерфейс `MediaRecorder`.
+* **API Контракт:**
+  * `POST /api/v1/speech/transcribe`
+  * Входные данные: `multipart/form-data` (аудиофайл в формате `.webm` или `.ogg`), `language` (`ru` | `en` | `he` | `auto`).
+  * Выходные данные: `{ "success": true, "text": "Распознанный текст" }`
+
+### 5.2. Модуль Text-to-Speech (Синтез речи)
+* **Технология на сервере:** **Piper** (для быстрой локальной генерации русского и английского языков) или интеграция с облачными API (для иврита, так как язык требует сложного разбора огласовок для естественного звучания).
+* **Технология на клиенте:** Получение бинарного аудиопотока и воспроизведение через HTML5 `Audio` API.
+* **API Контракт:**
+  * `POST /api/v1/speech/synthesize`
+  * Входные данные: JSON `{ "text": "Текст", "lang": "ru"|"en"|"he" }`
+  * Выходные данные: Аудиопоток (MIME-тип `audio/mpeg` или `audio/wav`).
+
+### 5.3. Клиентская реализация утилиты (TypeScript)
+
+```typescript
+// services/voiceUtility.ts
+import api from './apiClient';
+
+export class VoiceUtility {
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+
+  // 1. Начать запись голоса пользователя
+  async startListening(): Promise<void> {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.audioChunks = [];
+    this.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) this.audioChunks.push(event.data);
+    };
+    this.mediaRecorder.start();
+  }
+
+  // 2. Остановить запись и отправить файл на сервер для транскрибации (STT)
+  async stopAndTranscribe(lang: 'ru' | 'en' | 'he'): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!this.mediaRecorder) return reject('Запись не была запущена');
+
+      this.mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'voice.webm');
+        formData.append('language', lang);
+
+        try {
+          const response = await api.post<{ text: string }>('/speech/transcribe', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          resolve(response.data.text);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.mediaRecorder?.stream.getTracks().forEach(track => track.stop());
+        }
+      };
+      this.mediaRecorder.stop();
+    });
+  }
+
+  // 3. Получить от сервера озвучку текста и воспроизвести её (TTS)
+  async speak(text: string, lang: 'ru' | 'en' | 'he'): Promise<void> {
+    try {
+      const response = await api.post('/speech/synthesize', { text, lang }, { responseType: 'blob' });
+      const audioUrl = URL.createObjectURL(new Blob([response.data], { type: 'audio/mpeg' }));
+      const audio = new Audio(audioUrl);
+      await audio.play();
+    } catch (error) {
+      console.warn('Не удалось воспроизвести озвучку:', error);
+    }
+  }
+}
+```
+
+---
+
+## 6. Рекомендуемая структура проекта
+
+```text
+src/
+├── api/                   # Слой сетевых запросов
+│   ├── apiClient.ts       # Настроенный Axios с поддержкой динамического IP
+│   └── voiceApi.ts        # Методы для работы с TTS/STT утилитой
+├── components/            # Общие UI-компоненты
+│   ├── VoiceInput.tsx     # Кнопка голосового ввода (использует VoiceUtility)
+│   └── Player.tsx         # Медиаплеер с логикой отправки прогресса просмотра
+├── core/                  # Бизнес-логика и глобальные состояния
+├── platforms/             # Адаптация под окружение
+│   ├── platformService.ts # Определение: Web, TMA, Android TV (MAG)
+│   └── tvNavigation.ts    # Опциональная инициализация пространственного фокуса пульта
+├── views/                 # Страницы (Главная, Фильмы, Настройки)
+├── App.tsx                # Инициализация платформенных зависимостей
+└── main.tsx               # Точка входа в веб-приложение
+```
+
+Этот стандарт гарантирует, что разрабатываемая утилита и всё веб-приложение будут одинаково работать на смартфонах, компьютерах, в Telegram, на приставках **MAG на Android TV** и при запуске через браузер телевизора, используя при этом единый интерфейс взаимодействия с вашим локальным бэкендом.
